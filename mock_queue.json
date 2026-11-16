@@ -1,0 +1,8 @@
+[
+  {"id": "1", "titulo": "Black Friday SC (pronto para publicar)", "status": "Aprovado", "conta": "Instagram @redescacademia", "formato": "Feed 4:5", "publicar_em": "2026-11-18T18:30:00-03:00", "auto": true, "legenda": "teste", "imagens": ["https://exemplo.com/bf.png"]},
+  {"id": "2", "titulo": "Carrossel Nunca treinei (Auto desmarcado)", "status": "Aprovado", "conta": "Instagram @redescacademia", "formato": "Carrossel", "publicar_em": "2026-11-17T12:00:00-03:00", "auto": false, "legenda": "teste", "imagens": ["https://exemplo.com/1.png", "https://exemplo.com/2.png"]},
+  {"id": "3", "titulo": "Horarios (ainda nao chegou a hora)", "status": "Aprovado", "conta": "Instagram @redescacademia", "formato": "Feed 4:5", "publicar_em": "2026-11-20T12:00:00-03:00", "auto": true, "legenda": "teste", "imagens": ["https://exemplo.com/h.png"]},
+  {"id": "4", "titulo": "Stories hoje (sem URL da imagem)", "status": "Aprovado", "conta": "Instagram @redescacademia", "formato": "Stories", "publicar_em": "2026-11-18", "auto": true, "legenda": "", "imagens": []},
+  {"id": "5", "titulo": "Post LinkedIn (conta nao suportada)", "status": "Aprovado", "conta": "LinkedIn", "formato": "Texto LinkedIn", "publicar_em": "2026-11-18T10:00:00-03:00", "auto": true, "legenda": "teste", "imagens": []},
+  {"id": "6", "titulo": "Carrossel com 3 imagens (pronto)", "status": "Aprovado", "conta": "Instagram @redescacademia", "formato": "Carrossel", "publicar_em": "2026-11-18", "auto": true, "legenda": "teste", "imagens": ["https://exemplo.com/a.png", "https://exemplo.com/b.png", "https://exemplo.com/c.png"]}
+]
