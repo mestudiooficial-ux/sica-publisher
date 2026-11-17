@@ -3,7 +3,10 @@
 
 Seguro por padrao: sem --live nada e publicado (apenas mostra o que faria).
 So publica linhas com: Status = Aprovado, Auto marcado, "Publicar em" ja vencido,
-conta Instagram e URLs publicas das imagens preenchidas.
+conta Instagram e URLs publicas das midias preenchidas.
+
+Formatos: Feed 4:5 (1 imagem), Carrossel (2 a 10 imagens), Stories (1 imagem), Reel (1 video).
+Collab: coluna "Colaboradores" (ex.: @ricardo.scacademia). Nao vale para Stories.
 
 Uso:
   python publisher.py --mock mock_queue.json --now 2026-11-18T19:00:00-03:00   (teste local, sem rede)
@@ -16,6 +19,7 @@ Variaveis de ambiente (nunca coloque no codigo):
 import argparse
 import json
 import os
+import re
 import sys
 import time
 import urllib.parse
@@ -62,6 +66,16 @@ def text_of(prop):
     return "".join(i.get("plain_text", "") for i in items)
 
 
+def parse_handles(text):
+    """'@a, @b  c' -> ['a', 'b', 'c'] (maximo 3, sem @)."""
+    out = []
+    for h in re.split(r"[\s,;]+", text or ""):
+        h = h.strip().lstrip("@")
+        if h and h not in out:
+            out.append(h)
+    return out[:3]
+
+
 def parse_row(page):
     p = page["properties"]
     date = (p.get("Publicar em", {}).get("date") or {}).get("start")
@@ -75,6 +89,8 @@ def parse_row(page):
         "auto": bool(p.get("Auto", {}).get("checkbox")),
         "legenda": text_of(p.get("Legenda", {})),
         "imagens": [u.strip() for u in text_of(p.get("Imagens (URLs públicas)", {})).splitlines() if u.strip()],
+        "video": text_of(p.get("Vídeo (URL pública)", {})).strip(),
+        "colaboradores": parse_handles(text_of(p.get("Colaboradores", {}))),
     }
 
 
@@ -100,13 +116,21 @@ def check(row, now):
         return False, "ainda nao chegou a hora (%s)" % when.strftime("%d/%m %H:%M")
     if row["conta"] != IG_ACCOUNT_LABEL:
         return False, "conta nao suportada ainda (%s)" % row["conta"]
-    if row["formato"] not in ("Feed 4:5", "Carrossel", "Stories"):
-        return False, "formato nao suportado (%s)" % row["formato"]
+    fmt = row["formato"]
+    if fmt not in ("Feito 4:5", "Feed 4:5", "Carrossel", "Stories", "Reel"):
+        return False, "formato nao suportado (%s)" % fmt
+    if row.get("colaboradores") and fmt == "Stories":
+        return False, "Stories nao aceita collab: tire o campo Colaboradores"
+    if fmt == "Reel":
+        v = row.get("video") or ""
+        if not v.startswith("https://") or not re.search(r"\.(mp4|mov)(\?|$)", v, re.I):
+            return False, "Reel precisa de 'Vídeo (URL pública)' https terminando em .mp4 ou .mov"
+        return True, "ok"
     if not row["imagens"]:
         return False, "faltam URLs publicas das imagens"
-    if row["formato"] == "Carrossel" and not 2 <= len(row["imagens"]) <= 10:
+    if fmt == "Carrossel" and not 2 <= len(row["imagens"]) <= 10:
         return False, "carrossel precisa de 2 a 10 imagens"
-    if row["formato"] in ("Feed 4:5", "Stories") and len(row["imagens"]) != 1:
+    if fmt in ("Feed 4:5", "Stories") and len(row["imagens"]) != 1:
         return False, "este formato precisa de exatamente 1 imagem"
     return True, "ok"
 
@@ -123,16 +147,23 @@ def graph_post(path, params):
         raise RuntimeError("Meta HTTP %s: %s" % (e.code, e.read().decode("utf-8", "ignore")[:500]))
 
 
-def wait_container(cid):
-    for _ in range(20):
+def wait_container(cid, tries=20, pause=3):
+    for _ in range(tries):
         q = urllib.parse.urlencode({"fields": "status_code", "access_token": os.environ["META_ACCESS_TOKEN"]})
         st = http("GET", "%s/%s?%s" % (GRAPH, cid, q)).get("status_code")
         if st == "FINISHED":
             return
         if st == "ERROR":
             raise RuntimeError("Meta recusou a midia (status ERROR)")
-        time.sleep(3)
+        time.sleep(pause)
     raise RuntimeError("Tempo esgotado esperando a Meta processar a midia")
+
+
+def collab_params(row):
+    """Parametro de colaboradores para o container principal (nao vale para Stories)."""
+    if row.get("colaboradores") and row["formato"] != "Stories":
+        return {"collaborators": json.dumps(row["colaboradores"])}
+    return {}
 
 
 def publish_instagram(row):
@@ -144,12 +175,23 @@ def publish_instagram(row):
             c = graph_post(ig + "/media", {"image_url": url, "is_carousel_item": "true"})["id"]
             wait_container(c)
             kids.append(c)
-        cid = graph_post(ig + "/media", {"media_type": "CAROUSEL", "children": ",".join(kids), "caption": row["legenda"]})["id"]
+        params = {"media_type": "CAROUSEL", "children": ",".join(kids), "caption": row["legenda"]}
+        params.update(collab_params(row))
+        cid = graph_post(ig + "/media", params)["id"]
+        wait_container(cid)
     elif fmt == "Stories":
         cid = graph_post(ig + "/media", {"image_url": row["imagens"][0], "media_type": "STORIES"})["id"]
+        wait_container(cid)
+    elif fmt == "Reel":
+        params = {"media_type": "REELS", "video_url": row["video"], "caption": row["legenda"], "share_to_feed": "true"}
+        params.update(collab_params(row))
+        cid = graph_post(ig + "/media", params)["id"]
+        wait_container(cid, tries=60, pause=5)  # video demora mais (ate ~5 min)
     else:
-        cid = graph_post(ig + "/media", {"image_url": row["imagens"][0], "caption": row["legenda"]})["id"]
-    wait_container(cid)
+        params = {"image_url": row["imagens"][0], "caption": row["legenda"]}
+        params.update(collab_params(row))
+        cid = graph_post(ig + "/media", params)["id"]
+        wait_container(cid)
     return graph_post(ig + "/media_publish", {"creation_id": cid})["id"]
 
 
@@ -200,11 +242,15 @@ def main():
             print("  - PULA  %-45s %s" % (row["titulo"][:45], why))
             continue
         if not live:
-            print("  - PUBLICARIA  %s (%s, %d imagem(ns))" % (row["titulo"], row["formato"], len(row["imagens"])))
+            extra = " com collab @%s" % ",@".join(row["colaboradores"]) if row.get("colaboradores") else ""
+            print("  - PUBLICARIA  %s (%s%s)" % (row["titulo"], row["formato"], extra))
             continue
         try:
             post_id = publish_instagram(row)
-            notion_update(row["id"], "Publicado", post_id, "Publicado automaticamente em %s" % now.strftime("%d/%m/%Y %H:%M"))
+            msg = "Publicado automaticamente em %s" % now.strftime("%d/%m/%Y %H:%M")
+            if row.get("colaboradores"):
+                msg += ". Convite de collab enviado a @%s (precisa aceitar)." % ",@".join(row["colaboradores"])
+            notion_update(row["id"], "Publicado", post_id, msg)
             print("  - PUBLICADO  %s -> %s" % (row["titulo"], post_id))
             done += 1
         except Exception as e:  # nunca derruba a fila inteira
