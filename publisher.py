@@ -30,6 +30,17 @@ BRT = timezone(timedelta(hours=-3))
 GRAPH = "https://graph.facebook.com/v21.0"
 NOTION = "https://api.notion.com/v1"
 IG_ACCOUNT_LABEL = "Instagram @redescacademia"
+# Contas do Instagram aceitas. Valor None = usa INSTAGRAM_BUSINESS_ACCOUNT_ID do ambiente (Rede).
+# Os IDs das unidades nao sao segredo (o token e que da acesso).
+IG_ACCOUNTS = {
+    "Instagram @redescacademia": None,
+    "Instagram @scacademia.arsenal": "17841474870891069",
+    "Instagram @scacademia.rocha": "17841443765713067",
+}
+
+
+def ig_id_for(conta):
+    return IG_ACCOUNTS.get(conta) or os.environ["INSTAGRAM_BUSINESS_ACCOUNT_ID"]
 
 
 def load_env(path):
@@ -114,7 +125,7 @@ def check(row, now):
         return False, "sem data em 'Publicar em'"
     if when > now:
         return False, "ainda nao chegou a hora (%s)" % when.strftime("%d/%m %H:%M")
-    if row["conta"] != IG_ACCOUNT_LABEL:
+    if row["conta"] not in IG_ACCOUNTS:
         return False, "conta nao suportada ainda (%s)" % row["conta"]
     fmt = row["formato"]
     if fmt not in ("Feito 4:5", "Feed 4:5", "Carrossel", "Stories", "Reel"):
@@ -167,7 +178,7 @@ def collab_params(row):
 
 
 def publish_instagram(row):
-    ig = os.environ["INSTAGRAM_BUSINESS_ACCOUNT_ID"]
+    ig = ig_id_for(row["conta"])
     fmt = row["formato"]
     if fmt == "Carrossel":
         kids = []
