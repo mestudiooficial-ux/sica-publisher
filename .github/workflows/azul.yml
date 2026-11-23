@@ -1,0 +1,22 @@
+name: Card azul de hoje
+
+on:
+  schedule:
+    - cron: "0 10 * * *"   # 07h (Brasilia)
+    - cron: "0 15 * * *"   # 12h
+    - cron: "0 21 * * *"   # 18h
+  workflow_dispatch: {}
+
+jobs:
+  azul:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Atualizar card azul
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: python azul_auto.py
