@@ -36,6 +36,7 @@ IG_ACCOUNTS = {
     "Instagram @redescacademia": None,
     "Instagram @scacademia.arsenal": "17841474870891069",
     "Instagram @scacademia.rocha": "17841443765713067",
+    "Instagram @scacademia.colubande": "17841403718568949",
 }
 
 
