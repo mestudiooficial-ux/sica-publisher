@@ -52,6 +52,8 @@ for p in query(DB, {"or": [dia("Prazo"), dia("Date")]}):
     nome = txt(pr["Peça"]).strip()
     if nome.lower() in nomes_fila or nome in seen: continue
     seen.add(nome)
+    etapa = txt(pr["Etapa"]).lower() if "Etapa" in pr else ""
+    if txt(pr["Tipo"]) == "Publicação" and ("aprovado" in etapa or "postado" in etapa): continue  # ja aparece no calendario
     feito = txt(pr["Status"]) == "Feito"
     fmts = {x["name"] for x in pr["Formato"]["multi_select"]} if "Formato" in pr else set()
     tipo = txt(pr["Tipo"]) if "Tipo" in pr else ""
@@ -63,6 +65,7 @@ for p in query(DB, {"or": [dia("Prazo"), dia("Date")]}):
 ordem = {"🎥": 0, "🖼️": 1, "📋": 2, "✅": 3}
 linhas.sort(key=lambda s: (ordem.get(s.split(" ")[0], 9), s))
 for hhmm, nome, conta, st in fila:
+    if st != "Erro": continue  # postagens do dia ficam no calendario; so avisa erro
     h = hhmm.replace(":00", "h").replace(":", "h")
     if st in ("Publicado",): icone, pre = "✅", "Publicado %s: " % h
     elif st in ("Erro",): icone, pre = "⚠️", "Erro ao publicar %s: " % h
