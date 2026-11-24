@@ -53,8 +53,15 @@ for p in query(DB, {"or": [dia("Prazo"), dia("Date")]}):
     if nome.lower() in nomes_fila or nome in seen: continue
     seen.add(nome)
     feito = txt(pr["Status"]) == "Feito"
-    linhas.append(("✅ Feito: " if feito else "📋 Para hoje: ") + nome)
-linhas.sort(key=lambda s: (not s.startswith("📋"), s))
+    fmts = {x["name"] for x in pr["Formato"]["multi_select"]} if "Formato" in pr else set()
+    tipo = txt(pr["Tipo"]) if "Tipo" in pr else ""
+    if tipo == "Tarefa interna": ic = "📋"
+    elif fmts & {"Reel", "TV"} or tipo.lower().startswith("vídeo"): ic = "🎥"
+    elif fmts & {"Post", "Imagem", "Carrossel", "Story"}: ic = "🖼️"
+    else: ic = "📋"
+    linhas.append(("✅ Feito: " if feito else ic + " A fazer: ") + nome)
+ordem = {"🎥": 0, "🖼️": 1, "📋": 2, "✅": 3}
+linhas.sort(key=lambda s: (ordem.get(s.split(" ")[0], 9), s))
 for hhmm, nome, conta, st in fila:
     h = hhmm.replace(":00", "h").replace(":", "h")
     if st in ("Publicado",): icone, pre = "✅", "Publicado %s: " % h
