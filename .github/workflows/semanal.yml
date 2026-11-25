@@ -1,0 +1,40 @@
+name: SiCa Semanal
+
+on:
+  schedule:
+    - cron: "0 12 * * 6"    # sabado 09h (Brasilia): relatorio
+    - cron: "0 10 * * 1"    # segunda 07h: coleta dos concorrentes
+    - cron: "30 12 * * 1"   # segunda 09h30: aviso da pesquisa
+  workflow_dispatch:
+    inputs:
+      tarefa:
+        description: "Qual tarefa rodar"
+        type: choice
+        options: [relatorio, coletar, avisar]
+
+jobs:
+  semanal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Rodar tarefa
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          META_READ_TOKEN: ${{ secrets.META_READ_TOKEN }}
+          IG_READ_ID: ${{ secrets.IG_READ_ID }}
+          WHATSAPP_TOKEN: ${{ secrets.WHATSAPP_TOKEN }}
+          WHATSAPP_PHONE_NUMBER_ID_TESTE: ${{ secrets.WHATSAPP_PHONE_NUMBER_ID_TESTE }}
+          WHATSAPP_ALLOWED_NUMBER: ${{ secrets.WHATSAPP_ALLOWED_NUMBER }}
+          TAREFA: ${{ inputs.tarefa }}
+          AGENDA: ${{ github.event.schedule }}
+        run: |
+          case "$AGENDA" in
+            "0 12 * * 6") TAREFA=relatorio ;;
+            "0 10 * * 1") TAREFA=coletar ;;
+            "30 12 * * 1") TAREFA=avisar ;;
+          esac
+          python semanal.py "$TAREFA"
