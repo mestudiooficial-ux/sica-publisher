@@ -53,6 +53,12 @@ for p in query(DB, {"or": [dia("Prazo"), dia("Date")]}):
     if nome.lower() in nomes_fila or nome in seen: continue
     seen.add(nome)
     etapa = txt(pr["Etapa"]).lower() if "Etapa" in pr else ""
+    obs = txt(pr["Observações"]) if "Observações" in pr else ""
+    if "PROGRAMAR " + now.strftime("%d/%m") in obs:
+        linhas.append("🔔 Programar hoje: " + nome); continue
+    if "POSTAR À MÃO" in obs and "postado" not in etapa and txt(pr["Date"]).startswith(hoje):
+        d = txt(pr["Date"]); h = d[11:16].replace(":00", "h").replace(":", "h") if "T" in d else ""
+        linhas.append("🔔 Postar à mão %s: %s" % (h, nome)); continue
     if txt(pr["Tipo"]) == "Publicação" and ("aprovado" in etapa or "postado" in etapa): continue  # ja aparece no calendario
     feito = txt(pr["Status"]) == "Feito"
     fmts = {x["name"] for x in pr["Formato"]["multi_select"]} if "Formato" in pr else set()
@@ -62,7 +68,7 @@ for p in query(DB, {"or": [dia("Prazo"), dia("Date")]}):
     elif fmts & {"Post", "Imagem", "Carrossel", "Story"}: ic = "🖼️"
     else: ic = "📋"
     linhas.append(("✅ Feito: " if feito else ic + " A fazer: ") + nome)
-ordem = {"🎥": 0, "🖼️": 1, "📋": 2, "✅": 3}
+ordem = {"🔔": -1, "🎥": 0, "🖼️": 1, "📋": 2, "✅": 3}
 linhas.sort(key=lambda s: (ordem.get(s.split(" ")[0], 9), s))
 for hhmm, nome, conta, st in fila:
     if st != "Erro": continue  # postagens do dia ficam no calendario; so avisa erro
