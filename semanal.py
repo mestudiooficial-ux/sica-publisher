@@ -2,7 +2,7 @@
 
 python semanal.py relatorio   numeros da semana em .docx pelo WhatsApp (copia dos numeros no Notion)
 python semanal.py coletar     coleta publica dos concorrentes e grava no Notion para a analise
-python semanal.py avisar      manda pelo WhatsApp o link da pesquisa pronta
+python semanal.py avisar      manda pelo WhatsApp os links da pesquisa e do Radar de Trends
 Com --dry nada e gravado nem enviado.
 ATENCAO: o repositorio e publico, entao nada de dados, ids ou tokens nos prints.
 """
@@ -13,6 +13,7 @@ DRY = "--dry" in sys.argv
 BRT = dt.timezone(dt.timedelta(hours=-3))
 HOJE = dt.datetime.now(BRT).date()
 DB_PESQUISA = "41e74be6e5ad81588070c010227016c6"
+DB_RADAR = "42374be6e5ad81ac9193dd243ba51f13"
 PAGINA_SICA = "41874be6e5ad801d94b3da760f7c1309"
 TITULO_NUMEROS = "Números semanais · SiCa"
 CONCORRENTES = {"panobiancoacademia": "Panobianco", "smartfit": "Smart Fit", "bluefitacademia": "Bluefit"}
@@ -292,13 +293,21 @@ def coletar():
 def avisar():
     achados = notion("POST", "databases/%s/query" % DB_PESQUISA,
                      {"filter": {"property": "Nome", "title": {"equals": "Pesquisa Instagram — " + HOJE.isoformat()}}})["results"]
-    if DRY:
-        print("teste: pesquisa pronta" if achados else "teste: pesquisa de hoje nao existe")
-        return
+    radar = notion("POST", "databases/%s/query" % DB_RADAR,
+                   {"filter": {"property": "Data da pesquisa", "date": {"equals": HOJE.isoformat()}}})["results"]
+    linhas = []
     if achados:
-        whatsapp("Pesquisa semanal de concorrentes pronta no Notion: " + achados[0]["url"])
+        linhas.append("📊 Pesquisa de concorrentes pronta: " + achados[0]["url"])
     else:
-        whatsapp("SiCa: a pesquisa de concorrentes de hoje ainda não ficou pronta. Vale conferir.")
+        linhas.append("SiCa: a pesquisa de concorrentes de hoje ainda não ficou pronta. Vale conferir.")
+    if radar:
+        linhas.append("🎬 Radar de Trends: %d ideias de gravação em https://www.notion.so/%s" % (len(radar), DB_RADAR))
+    else:
+        linhas.append("SiCa: o Radar de Trends de hoje não gerou cards. Vale conferir.")
+    if DRY:
+        print("teste: concorrentes %s | radar %d cards" % ("pronta" if achados else "nao existe", len(radar)))
+        return
+    whatsapp(chr(10).join(linhas))
 
 
 if __name__ == "__main__":
