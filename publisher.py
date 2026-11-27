@@ -196,6 +196,8 @@ def publish_instagram(row):
         wait_container(cid)
     elif fmt == "Reel":
         params = {"media_type": "REELS", "video_url": row["video"], "caption": row["legenda"], "share_to_feed": "true"}
+        if row["imagens"]:  # capa do Reel: 1a URL de "Imagens (URLs públicas)"
+            params["cover_url"] = row["imagens"][0]
         params.update(collab_params(row))
         cid = graph_post(ig + "/media", params)["id"]
         wait_container(cid, tries=60, pause=5)  # video demora mais (ate ~5 min)
